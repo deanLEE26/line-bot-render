@@ -1,4 +1,3 @@
-// ✅ 正確版本：Render + LINE Webhook 適用
 const { classifyMessage, getBusinessDate } = require("./keywords");
 require("dotenv").config();
 const express = require("express");
@@ -6,20 +5,19 @@ const line = require("@line/bot-sdk");
 const cron = require("node-cron");
 
 const app = express();
-const PORT = process.env.PORT || 3000; // ✅ Render 會使用自己的 PORT
+const PORT = parseInt(process.env.PORT, 10) || 3000;
 
-// LINE Bot 設定
 const config = {
   channelAccessToken: process.env.LINE_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
 const client = new line.Client(config);
-const dailyLog = {}; // 用來記錄每天每人打卡資料
+const dailyLog = {};
 
 app.use(express.json());
 
-// ✅ LINE webhook endpoint
+// 🔔 Webhook 接收訊息
 app.post("/webhook", line.middleware(config), async (req, res) => {
   console.log("🚨 收到 webhook 請求！");
   const events = req.body.events;
@@ -29,11 +27,18 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
       const text = event.message.text;
       const userId = event.source.userId || "未知用戶";
       const groupId = event.source.groupId || process.env.DEFAULT_GROUP_ID;
+
       console.log("🆔 這是你群組的 ID：", groupId);
 
+      let userName = "未知用戶";
       try {
         const profile = await client.getProfile(userId);
-        const userName = profile.displayName;
+        userName = profile.displayName;
+      } catch (e) {
+        console.warn("⚠️ 無法取得使用者名稱，可能為群組訊息");
+      }
+
+      try {
         const type = classifyMessage(text);
         const businessDate = getBusinessDate();
 
@@ -61,7 +66,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
   res.sendStatus(200);
 });
 
-// ✅ 每天 23:30 自動推播當日打卡報表
+// ⏰ 每天 23:30 自動推播打卡紀錄
 cron.schedule("30 23 * * *", async () => {
   const today = getBusinessDate();
   const records = dailyLog[today];
@@ -89,15 +94,21 @@ cron.schedule("30 23 * * *", async () => {
   }
 
   const finalMsg = summary + issues;
-  await client.pushMessage(process.env.DEFAULT_GROUP_ID, {
-    type: "text",
-    text: finalMsg,
-  });
+  const groupId = process.env.DEFAULT_GROUP_ID;
+  if (groupId && groupId !== "PLACEHOLDER_GROUP_ID") {
+    await client.pushMessage(groupId, {
+      type: "text",
+      text: finalMsg,
+    });
+    console.log("✅ 已推播每日報表");
+  } else {
+    console.warn("⚠️ 無法推播，DEFAULT_GROUP_ID 尚未設定");
+  }
 
-  delete dailyLog[today]; // 清除當日資料
+  delete dailyLog[today];
 });
 
-// ✅ 監聽 Render 提供的 PORT
+// 🚀 啟動伺服器
 app.listen(PORT, () => {
   console.log(`🚀 伺服器已啟動，監聽埠：${PORT}`);
 });
