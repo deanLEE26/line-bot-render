@@ -1,3 +1,4 @@
+// ✅ 正確版本：Render + LINE Webhook 適用
 const { classifyMessage, getBusinessDate } = require("./keywords");
 require("dotenv").config();
 const express = require("express");
@@ -5,18 +6,20 @@ const line = require("@line/bot-sdk");
 const cron = require("node-cron");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // ✅ Render 會使用自己的 PORT
 
+// LINE Bot 設定
 const config = {
   channelAccessToken: process.env.LINE_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
 const client = new line.Client(config);
-const dailyLog = {};
+const dailyLog = {}; // 用來記錄每天每人打卡資料
 
 app.use(express.json());
 
+// ✅ LINE webhook endpoint
 app.post("/webhook", line.middleware(config), async (req, res) => {
   console.log("🚨 收到 webhook 請求！");
   const events = req.body.events;
@@ -26,7 +29,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
       const text = event.message.text;
       const userId = event.source.userId || "未知用戶";
       const groupId = event.source.groupId || process.env.DEFAULT_GROUP_ID;
-      console.log("🆔 這是你群組的 ID：", event.source.groupId);
+      console.log("🆔 這是你群組的 ID：", groupId);
 
       try {
         const profile = await client.getProfile(userId);
@@ -58,7 +61,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
   res.sendStatus(200);
 });
 
-// 每天 23:30 自動推播打卡報表
+// ✅ 每天 23:30 自動推播當日打卡報表
 cron.schedule("30 23 * * *", async () => {
   const today = getBusinessDate();
   const records = dailyLog[today];
@@ -91,10 +94,10 @@ cron.schedule("30 23 * * *", async () => {
     text: finalMsg,
   });
 
-  delete dailyLog[today];
+  delete dailyLog[today]; // 清除當日資料
 });
 
-// ✅ 正確綁定 PORT（Render 必須）
+// ✅ 監聽 Render 提供的 PORT
 app.listen(PORT, () => {
   console.log(`🚀 伺服器已啟動，監聽埠：${PORT}`);
 });
