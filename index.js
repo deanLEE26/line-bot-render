@@ -94,6 +94,7 @@ cron.schedule("30 23 * * *", async () => {
   delete dailyLog[today];
 });
 
+// ✅ 正確綁定 PORT（Render 必須）
 app.listen(PORT, () => {
   console.log(`🚀 伺服器已啟動，監聽埠：${PORT}`);
 });
