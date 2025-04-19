@@ -25,15 +25,15 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
     if (event.type === "message" && event.message.type === "text") {
       const text = event.message.text;
       const userId = event.source.userId || "未知用戶";
-      const groupId = event.source.groupId;
-      console.log("🆔 這是你群組的 ID：", groupId);
+      const groupId = event.source.groupId || process.env.DEFAULT_GROUP_ID;
+      console.log("🆔 群組 ID：", groupId);
 
       let userName = "未知用戶";
       try {
         const profile = await client.getProfile(userId);
         userName = profile.displayName;
       } catch (e) {
-        console.warn("⚠️ 無法取得使用者名稱，可能為群組訊息");
+        console.warn("⚠️ 無法取得使用者資訊，可能為群組訊息");
       }
 
       try {
@@ -47,7 +47,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
 
           await client.replyMessage(event.replyToken, {
             type: "text",
-            text: `${type}紀錄成功 ✅`,
+            text: `${type} 紀錄成功 ✅`,
           });
         } else {
           await client.replyMessage(event.replyToken, {
@@ -56,7 +56,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
           });
         }
       } catch (err) {
-        console.error("❗️ 錯誤：", err);
+        console.error("❗ 錯誤：", err);
       }
     }
   }
@@ -64,43 +64,47 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
   res.sendStatus(200);
 });
 
-// ⏰ 每天 23:30 自動推播打卡紀錄
 cron.schedule("30 23 * * *", async () => {
   const today = getBusinessDate();
   const records = dailyLog[today];
   if (!records) return;
 
-  let summary = `📅 ${today} 打卡紀錄\n`;
-  let issues = `\n⚠️ 打卡異常檢查\n`;
+  let summary = `📅 ${today} 打卡紀錄
+`;
+  let issues = `
+⚠️ 打卡異常檢查
+`;
 
   for (const [user, logs] of Object.entries(records)) {
     const uniqueLogs = [...new Set(logs)];
-    summary += `👤 ${user}：${uniqueLogs.join("、")}\n`;
+    summary += `👤 ${user}：${uniqueLogs.join("、")}
+`;
 
     if (uniqueLogs.includes("上班打卡") && !uniqueLogs.includes("下班打卡")) {
-      issues += `- ${user}：❌ 上班已打，下班未打\n`;
+      issues += `- ${user}：❌ 上班已打，下班未打
+`;
     }
     if (!uniqueLogs.includes("上班打卡") && uniqueLogs.includes("下班打卡")) {
-      issues += `- ${user}：❌ 下班已打，上班未打\n`;
+      issues += `- ${user}：❌ 下班已打，上班未打
+`;
     }
 
     const mealTags = ["誤餐（早）", "誤餐（中）", "誤餐（晚）", "誤餐（宵）"];
     const missed = mealTags.filter(tag => !uniqueLogs.includes(tag));
     if (missed.length > 0 && mealTags.some(tag => uniqueLogs.includes(tag))) {
-      issues += `- ${user}：❌ 誤餐缺少 ${missed.join("、")}\n`;
+      issues += `- ${user}：❌ 誤餐缺少 ${missed.join("、")}
+`;
     }
   }
 
   const finalMsg = summary + issues;
-
-  if (process.env.DEFAULT_GROUP_ID) {
-    await client.pushMessage(process.env.DEFAULT_GROUP_ID, {
+  const groupId = process.env.DEFAULT_GROUP_ID;
+  if (groupId) {
+    await client.pushMessage(groupId, {
       type: "text",
       text: finalMsg,
     });
-    console.log("✅ 已推播每日報表");
-  } else {
-    console.warn("⚠️ 無法推播，DEFAULT_GROUP_ID 尚未設定");
+    console.log("✅ 已推播打卡報表");
   }
 
   delete dailyLog[today];

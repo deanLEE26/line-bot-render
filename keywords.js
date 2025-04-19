@@ -1,4 +1,3 @@
-// keywords.js
 const KEYWORDS = {
   "上班打卡": ["備車", "出勤", "報到", "上課"],
   "下班打卡": ["下課", "下山", "回家"],
@@ -25,7 +24,4 @@ function getBusinessDate() {
   return now.toISOString().split("T")[0];
 }
 
-module.exports = {
-  classifyMessage,
-  getBusinessDate,
-};
+module.exports = { classifyMessage, getBusinessDate };
