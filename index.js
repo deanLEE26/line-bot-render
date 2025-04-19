@@ -1,3 +1,8 @@
+console.log("✅ Loaded ENV:", {
+  channelSecret: process.env.LINE_CHANNEL_SECRET,
+  accessToken: process.env.LINE_ACCESS_TOKEN,
+});
+
 const { classifyMessage, getBusinessDate } = require("./keywords");
 require("dotenv").config();
 const express = require("express");
