@@ -17,7 +17,6 @@ const dailyLog = {};
 
 app.use(express.json());
 
-// 🔔 Webhook 接收訊息
 app.post("/webhook", line.middleware(config), async (req, res) => {
   console.log("🚨 收到 webhook 請求！");
   const events = req.body.events;
@@ -26,8 +25,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
     if (event.type === "message" && event.message.type === "text") {
       const text = event.message.text;
       const userId = event.source.userId || "未知用戶";
-      const groupId = event.source.groupId || process.env.DEFAULT_GROUP_ID;
-
+      const groupId = event.source.groupId;
       console.log("🆔 這是你群組的 ID：", groupId);
 
       let userName = "未知用戶";
@@ -94,9 +92,9 @@ cron.schedule("30 23 * * *", async () => {
   }
 
   const finalMsg = summary + issues;
-  const groupId = process.env.DEFAULT_GROUP_ID;
-  if (groupId && groupId !== "PLACEHOLDER_GROUP_ID") {
-    await client.pushMessage(groupId, {
+
+  if (process.env.DEFAULT_GROUP_ID) {
+    await client.pushMessage(process.env.DEFAULT_GROUP_ID, {
       type: "text",
       text: finalMsg,
     });
@@ -108,7 +106,6 @@ cron.schedule("30 23 * * *", async () => {
   delete dailyLog[today];
 });
 
-// 🚀 啟動伺服器
 app.listen(PORT, () => {
   console.log(`🚀 伺服器已啟動，監聽埠：${PORT}`);
 });
